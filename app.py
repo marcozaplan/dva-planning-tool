@@ -56,7 +56,6 @@ HINTS = {
 
 if "brief" not in st.session_state:
     st.session_state.brief = deepcopy(DEFAULTS)
-    st.session_state.data_seed = pd.DataFrame(columns=DATA_COLUMNS)
     st.session_state.nav = STEPS[0]
     st.session_state.loaded = None
 b = st.session_state.brief
@@ -64,7 +63,6 @@ b = st.session_state.brief
 
 def go(i):
     st.session_state.nav = STEPS[i]
-    st.session_state.data_seed = pd.DataFrame(st.session_state.brief["data"], columns=DATA_COLUMNS)
 
 
 def put(name, widget, label, **kw):
@@ -88,7 +86,7 @@ def load(file):
         b["deadline"] = date.fromisoformat(b["deadline"])
     for k in [k for k in st.session_state if str(k).startswith("w_")]:
         del st.session_state[k]
-    go(STEPS.index(st.session_state.nav))
+    st.session_state.nav = STEPS[0]
 
 
 def ask(n, q):
@@ -120,14 +118,16 @@ def preview():
 with st.sidebar:
     st.markdown("## DVa")
     st.caption("Data visualisation planning, since 2016")
-    st.radio("Steps", STEPS, key="nav", label_visibility="collapsed",
-             on_change=lambda: go(STEPS.index(st.session_state.nav)))
+    nav_slot = st.empty()
     status = st.container()
     st.divider()
     upload = st.file_uploader("Resume a saved brief", type="json")
     if upload and upload.file_id != st.session_state.loaded:
         st.session_state.loaded = upload.file_id
         load(upload)
+    with nav_slot:
+        st.radio("Steps", STEPS, key="nav", label_visibility="collapsed",
+                 on_change=lambda: go(STEPS.index(st.session_state.nav)))
 
 step = STEPS.index(st.session_state.nav)
 
@@ -165,7 +165,7 @@ elif step == 1:
 elif step == 2:
     ask(2, "What data do we have, and what's the one fact that matters?")
     edited = st.data_editor(
-        st.session_state.data_seed, key="w_data", num_rows="dynamic", hide_index=True,
+        pd.DataFrame(b["data"], columns=DATA_COLUMNS), key="w_data", num_rows="dynamic", hide_index=True,
         column_config={c: st.column_config.TextColumn(c) for c in DATA_COLUMNS},
     )
     b["data"] = [r for r in edited.fillna("").to_dict("records") if any(str(v).strip() for v in r.values())]
